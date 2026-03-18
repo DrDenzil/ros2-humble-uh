@@ -1,4 +1,6 @@
 #!/bin/bash
+set -euo pipefail
 
-# Only 1 docker container can be running for this to work
-gnome-terminal -- docker exec -it $(docker ps -q) bash
+CONTAINER_NAME="${1:-ros2-humble-nvidia}"
+
+exec docker exec -it "$CONTAINER_NAME" bash
