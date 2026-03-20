@@ -1,216 +1,120 @@
-# ROS 2 Humble + TIAGo + Gazebo/RViz Docker Images
+# ROS 2 Humble Container for UH Students
 
-This repository provides Docker images for running a ROS 2 Humble environment on **Ubuntu 22.04** with:
+A simple way to run a ready-made ROS 2 Humble environment for TIAGo work.
 
-- **ROS 2 Humble**
-- **Gazebo / ros_gz integration**
-- **RViz** (via `ros-humble-desktop`)
-- **PAL Robotics TIAGo public tutorials workspace**
-- **CycloneDDS** as the selected RMW implementation
+The container images are already published on GHCR, so most students should **pull and run** rather than build locally.
 
-It is designed for local Linux use where you want a ready-to-run robotics development and simulation environment with either:
+---
 
-- **NVIDIA GPU acceleration**
-- **Mesa / DRI rendering for Intel iGPU or AMD GPU systems**
+## 1. Pull the image
 
-## What it is
-
-This repo builds two related Docker images from a shared Dockerfile:
-
-- `ros2-humble:nvidia`
-- `ros2-humble:mesa`
-
-Both images provide the same ROS/TIAGo/Gazebo/RViz feature set. The difference is the GPU/runtime path:
-
-- **`nvidia`** is for machines using NVIDIA GPUs and the NVIDIA container runtime
-- **`mesa`** is for machines using Intel integrated graphics or AMD GPUs via Mesa and `/dev/dri`
-
-## What it supports
-
-### Common features in both images
-
-Both images include:
-
-- Ubuntu 22.04 base
-- ROS 2 Humble
-- `ros-humble-desktop`
-- `ros-humble-ros-gz`
-- `ros-humble-gazebo-ros-pkgs`
-- `ros-humble-rmw-cyclonedds-cpp`
-- `python3-vcstool`
-- TIAGo public workspace import from PAL Robotics
-- dependency installation with `rosdep`
-- TIAGo workspace build with `colcon`
-- ROS + TIAGo overlay sourced automatically by the entrypoint
-
-### GPU/runtime variants
-
-#### `ros2-humble:nvidia`
-
-Use this on:
-
-- Linux machines with NVIDIA GPUs
-- systems with NVIDIA Container Toolkit installed
-- environments where you want `--gpus all`
-
-#### `ros2-humble:mesa`
-
-Use this on:
-
-- Linux machines with Intel iGPU
-- Linux machines with AMD GPUs
-- systems using Mesa/DRI
-- local desktops where `/dev/dri` is available
-
-## How it works
-
-The Dockerfile is structured as:
-
-1. **GPU-specific base**
-   - NVIDIA base from CUDA Ubuntu 22.04
-   - Mesa base from Ubuntu 22.04
-2. **Shared development stage**
-   - build tools
-   - ROS dev tooling
-   - non-root `ros` user
-3. **Shared desktop/full stage**
-   - installs `ros-humble-desktop`
-4. **Shared Gazebo/TIAGo stage**
-   - installs Gazebo/ros_gz packages
-   - imports TIAGo public repos
-   - installs dependencies with `rosdep`
-   - builds the workspace with `colcon`
-5. **Final runtime targets**
-   - `nvidia`
-   - `mesa`
-
-At runtime, `ros_entrypoint.sh` automatically sources:
-
-- `/opt/ros/humble/setup.bash`
-- `/home/ros/tiago_public_ws/install/setup.bash` (if present)
-
-So when the container starts, the ROS environment and TIAGo overlay are ready to use.
-
-## Repository files
-
-- `Dockerfile` — builds both image variants
-- `nvidia.sh` — local-use launcher for the NVIDIA image
-- `mesa.sh` — local-use launcher for the Mesa image
-- `new_terminal.sh` — open an extra shell in a running container
-- `ros_entrypoint.sh` — sources ROS and TIAGo overlays at startup
-
-## Build images
-
-Build the NVIDIA image:
-
-```bash
-docker build --build-arg GPU_FLAVOR=nvidia --target nvidia -t ros2-humble:nvidia .
-```
-
-Build the Mesa image:
-
-```bash
-docker build --build-arg GPU_FLAVOR=mesa --target mesa -t ros2-humble:mesa .
-```
-
-## How to use it
+Choose the image that matches your system.
 
 ### NVIDIA systems
+Use this if your machine has an NVIDIA GPU and working NVIDIA Container Toolkit support.
 
-Run:
+```bash
+docker pull ghcr.io/drdenzil/ros2-humble-uh:nvidia
+```
+
+### Intel / AMD systems
+Use this for most laptops and desktops using Intel or AMD graphics.
+
+```bash
+docker pull ghcr.io/drdenzil/ros2-humble-uh:mesa
+```
+
+---
+
+## 2. Run it on your system
+
+### Option A: NVIDIA GPU
 
 ```bash
 ./nvidia.sh
 ```
 
-This launches the NVIDIA image with:
+This starts the NVIDIA version of the container.
 
-- `--gpus all`
-- host networking
-- host IPC
-- X11 socket mount
-- `DISPLAY` passed through
-- `/dev` mounted for permissive local use
-
-### Intel / AMD / Mesa systems
-
-Run:
+### Option B: Intel / AMD graphics
 
 ```bash
 ./mesa.sh
 ```
 
-This launches the Mesa image with:
+This starts the Mesa version of the container.
 
-- `/dev/dri` passthrough
-- host networking
-- host IPC
-- X11 socket mount
-- `DISPLAY` passed through
-- `/dev` mounted for permissive local use
-
-## Open another shell in a running container
-
-By default, `new_terminal.sh` opens a shell in the NVIDIA container:
+### Open another shell in the running container
 
 ```bash
 ./new_terminal.sh
 ```
 
-To open a shell in the Mesa container:
-
-```bash
-./new_terminal.sh ros2-humble-mesa
-```
-
-To open a shell in the NVIDIA container explicitly:
+If needed, you can also give the container name manually:
 
 ```bash
 ./new_terminal.sh ros2-humble-nvidia
+./new_terminal.sh ros2-humble-mesa
 ```
 
-## Notes about permissions and security
+---
 
-The launcher scripts are intentionally permissive because this repository is aimed at **local workstation use** rather than locked-down multi-tenant environments.
+## Which system should I use?
 
-That means they use broad options like:
+Use:
 
-- host networking
-- host IPC
-- `/dev` passthrough
-- broad device cgroup access
+- **`nvidia.sh`** on Linux systems with an **NVIDIA GPU**
+- **`mesa.sh`** on Linux systems with **Intel or AMD graphics**
 
-This is convenient for local robotics and simulation work, but it is **not a hardened container security model**.
+These launcher scripts are intended for **Linux hosts with Docker installed**.
 
-## Notes about GUI support
+If you are unsure which one to use:
 
-The current launchers are primarily oriented around **X11** GUI forwarding via:
+- NVIDIA graphics card → try `nvidia.sh`
+- Intel / AMD graphics → use `mesa.sh`
 
-- `/tmp/.X11-unix`
-- `DISPLAY`
+---
 
-For many Linux desktop setups, that is enough for RViz and Gazebo.
+## 3. Supporting files
 
-If you need Wayland-specific support later, that can be added as a follow-up.
+### `nvidia.sh`
+Starts the NVIDIA-based container from:
 
-## Tested status
+```text
+ghcr.io/drdenzil/ros2-humble-uh:nvidia
+```
 
-At the time of writing, both images have been:
+### `mesa.sh`
+Starts the Intel/AMD (Mesa) container from:
 
-- built successfully
-- smoke-tested for container startup
-- verified to run as the `ros` user
-- verified to expose ROS 2 Humble
-- verified to include the TIAGo overlay
-- verified to include Gazebo / RViz related packages
+```text
+ghcr.io/drdenzil/ros2-humble-uh:mesa
+```
 
-The Mesa image has also been tested for a permissive local runtime path using `/dev/dri`.
+### `new_terminal.sh`
+Opens a new terminal inside a running container.
 
-## Summary
+### `ros_entrypoint.sh`
+Sets up the ROS environment automatically when the container starts.
 
-If you have:
+### `Dockerfile`
+Used to build the images locally. Most students do **not** need this.
 
-- **NVIDIA GPU** → use `ros2-humble:nvidia` via `./nvidia.sh`
-- **Intel or AMD GPU** → use `ros2-humble:mesa` via `./mesa.sh`
+---
 
-Both provide the same ROS 2 Humble + TIAGo + Gazebo + RViz environment on Ubuntu 22.04.
+## What you get in the container
+
+The container is set up with:
+
+- ROS 2 Humble
+- TIAGo tutorial workspace
+- Gazebo / ROS simulation support
+- A ready-to-use shell environment
+
+---
+
+## Advanced use
+
+For local builds and extra technical details, see:
+
+- [ADVANCED.md](ADVANCED.md)
